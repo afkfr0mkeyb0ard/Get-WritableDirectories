@@ -6,7 +6,6 @@ The script:
 3. removes the `poc.txt` files
 
 ## Usage
-Load the script:
 ```
 PS> . .\Scanner.ps1
 PS> Get-WritableDirectories -RootPath "C:\"
