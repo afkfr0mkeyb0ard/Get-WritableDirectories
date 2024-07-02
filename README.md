@@ -1,4 +1,4 @@
-A Powershell script to **get all writable folders with the current user on a Windows machine**.
+A Powershell script to get all writable folders with the current user on a Windows machine.
 
 The script:
 1. gets a list of all the folders on the system
