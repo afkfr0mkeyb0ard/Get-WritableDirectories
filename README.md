@@ -8,5 +8,5 @@ The script:
 ## Usage
 ```
 PS> . .\Scanner.ps1
-PS> Get-WritableDirectories -RootPath "C:\"
+PS> Get-WritableDirectories -RootPath "C:\Windows\"
 ```
