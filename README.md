@@ -11,5 +11,5 @@ PS> . .\Scanner.ps1
 PS> Get-WritableDirectories -RootPath "C:\Windows\"
 
 #Oneliner
-> powershell -ep bypass -nop -c "IEX (New-Object Net.WebClient).DownloadString('https://raw.githubusercontent.com/afkfr0mkeyb0ard/Get-WritableDirectories/refs/heads/main/Scanner.ps1');Get-WritableDirectories -RootPath C:\Windows\;"
+> powershell -ep bypass -nop -c "IEX (New-Object Net.WebClient).DownloadString('https://raw.githubusercontent.com/afkfr0mkeyb0ard/Get-WritableDirectories/refs/heads/main/Scanner.ps1');Get-WritableDirectories -RootPath 'C:\Windows\';"
 ```
