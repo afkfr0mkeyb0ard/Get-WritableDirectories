@@ -6,7 +6,6 @@ function Get-AllFiles {
     $allFiles = @()
 
     if ($Path) {
-        # Utilisateur a fourni un chemin personnalisé
         Write-Host "Scanning $Path ..."
         try {
             $allFiles += Get-ChildItem -Path $Path -Recurse -File -ErrorAction SilentlyContinue |
@@ -15,7 +14,6 @@ function Get-AllFiles {
             Write-Warning "Error accessing ${Path}: $_"
         }
     } else {
-        # Parcourir tous les lecteurs si aucun chemin fourni
         $drives = (Get-PSDrive -PSProvider FileSystem).Name
         foreach ($drive in $drives) {
             $drivePath = "$drive`:\"
@@ -32,7 +30,95 @@ function Get-AllFiles {
     return $allFiles
 }
 
+function Test-FileAccess {
+    param (
+        [Parameter(Mandatory)]
+        [string[]]$FilePaths,
 
+        [Parameter(Mandatory)]
+        [ValidateSet("R", "W", "E")]
+        [string[]]$Permission
+    )
+
+    $user = [System.Security.Principal.WindowsIdentity]::GetCurrent()
+    $principal = New-Object System.Security.Principal.WindowsPrincipal($user)
+
+    $results = foreach ($file in $FilePaths) {
+        # Initial properties with default values
+        $props = @{ Path = $file }
+
+        # Handle 'R' (Read) permission
+        if ("R" -in $Permission) {
+            $props["Readable"] = $false
+            try {
+                $acl = Get-Acl -Path $file
+                $rules = $acl.Access
+                foreach ($rule in $rules) {
+                    if ($principal.IsInRole($rule.IdentityReference)) {
+                        if ($rule.FileSystemRights -band [System.Security.AccessControl.FileSystemRights]::Read) {
+                            if ($rule.AccessControlType -eq "Allow") { $props["Readable"] = $true }
+                            if ($rule.AccessControlType -eq "Deny")  { $props["Readable"] = $false }
+                        }
+                    }
+                }
+            } catch {
+                #Write-Warning "Cannot check Read access for $file : $_"
+            }
+        }
+
+        # Handle 'W' (Write) permission
+        if ("W" -in $Permission) {
+            $props["Writable"] = $false
+            try {
+                $stream = [System.IO.File]::Open($file, 'Open', 'Write')
+                $stream.Close()
+                $props["Writable"] = $true
+            } catch {
+                $props["Writable"] = $false
+            }
+        }
+
+        # Handle 'E' (Execute) permission
+        if ("E" -in $Permission) {
+            $props["Executable"] = $false
+            try {
+                $acl = Get-Acl -Path $file
+                $rules = $acl.Access
+                foreach ($rule in $rules) {
+                    if ($principal.IsInRole($rule.IdentityReference)) {
+                        if ($rule.FileSystemRights -band [System.Security.AccessControl.FileSystemRights]::ExecuteFile) {
+                            if ($rule.AccessControlType -eq "Allow") { $props["Executable"] = $true }
+                            if ($rule.AccessControlType -eq "Deny")  { $props["Executable"] = $false }
+                        }
+                    }
+                }
+            } catch {
+                #Write-Warning "Cannot check Execute access for $file : $_"
+            }
+        }
+
+        # Check if at least one permission is true
+        $hasPermission = $Permission | ForEach-Object {
+            switch ($_){
+                "R" { $props["Readable"] }
+                "W" { $props["Writable"] }
+                "E" { $props["Executable"] }
+            }
+        } | Where-Object { $_ -eq $true }
+
+        if ($hasPermission) {
+            # Return the result with explicit column order
+            [PSCustomObject]@{
+                Path       = $props["Path"]
+                Readable   = $props["Readable"]
+                Writable   = $props["Writable"]
+                Executable = $props["Executable"]
+            }
+        }
+    }
+
+    return $results
+}
 
 function Test-FileWritable {
     param (
@@ -58,12 +144,79 @@ function Test-FileWritable {
     }
 }
 
-#List all the files on the system
-#Get-AllFiles
+function Test-FileReadable {
+    param (
+        [Parameter(Mandatory)]
+        [string[]]$FilePaths
+    )
 
-#List all files in C:\Windows\System32
-#Get-AllFiles -Path "C:\Windows\System32"
+    foreach ($file in $FilePaths) {
+        $readable = $false
 
-#Find all writable files in C:\Windows\System32
-#Test-FileWritable -FilePaths (Get-AllFiles -Path "C:\Windows\System32") | Where-Object { $_.Writable }
+        try {
+            $acl = Get-Acl -Path $file
+            $rules = $acl.Access
+            $user = [System.Security.Principal.WindowsIdentity]::GetCurrent()
+            $principal = New-Object System.Security.Principal.WindowsPrincipal($user)
 
+            foreach ($rule in $rules) {
+                if ($principal.IsInRole($rule.IdentityReference)) {
+                    if ($rule.FileSystemRights -band [System.Security.AccessControl.FileSystemRights]::Read) {
+                        if ($rule.AccessControlType -eq "Allow") { $readable = $true }
+                        if ($rule.AccessControlType -eq "Deny")  { $readable = $false }
+                    }
+                }
+            }
+        } catch {
+            #Write-Warning "Cannot check READ access for $file : $_"
+        }
+
+        [PSCustomObject]@{
+            Path    = $file
+            Readable = $readable
+        }
+    }
+}
+
+function Test-FileExecutable {
+    param (
+        [Parameter(Mandatory)]
+        [string[]]$FilePaths
+    )
+
+    foreach ($file in $FilePaths) {
+        $executable = $false
+
+        try {
+            $acl = Get-Acl -Path $file
+            $rules = $acl.Access
+            $user = [System.Security.Principal.WindowsIdentity]::GetCurrent()
+            $principal = New-Object System.Security.Principal.WindowsPrincipal($user)
+
+            foreach ($rule in $rules) {
+                if ($principal.IsInRole($rule.IdentityReference)) {
+                    if ($rule.FileSystemRights -band [System.Security.AccessControl.FileSystemRights]::ExecuteFile) {
+                        if ($rule.AccessControlType -eq "Allow") { $executable = $true }
+                        if ($rule.AccessControlType -eq "Deny")  { $executable = $false }
+                    }
+                }
+            }
+        } catch {
+            #Write-Warning "Cannot check EXECUTE access for $file : $_"
+        }
+
+        [PSCustomObject]@{
+            Path       = $file
+            Executable = $executable
+        }
+    }
+}
+
+# Check for writable files only
+# Test-FileAccess -FilePaths (Get-AllFiles -Path "C:\Windows\System32") -Permission W | Format-Table -AutoSize
+
+# Check for writable and executable files 
+# Test-FileAccess -FilePaths (Get-AllFiles -Path "C:\Windows\System32") -Permission W,E | Format-Table -AutoSize
+
+# Check for readable, writable and executable files 
+# Test-FileAccess -FilePaths (Get-AllFiles -Path "C:\Windows\System32") -Permission R,W,E | Format-Table -AutoSize
