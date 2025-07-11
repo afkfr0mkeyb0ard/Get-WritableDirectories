@@ -1,9 +1,9 @@
 A Powershell script to get all writable folders and files with the current user on a Windows machine.
 
 The script:
-1. gets a list of all the folders on the system
-2. checks the writable access for each folder by trying to write a `poc.txt` file
-3. removes the `poc.txt` files
+-  gets a list of all the files and folders on the system
+-  checks the write access for each folder by trying to write a `poc.txt` file and then removes it
+-  checks the privileges for each file by trying to load them (read/write/execute)
 
 ## Usage
 ```
