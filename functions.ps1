@@ -254,7 +254,7 @@ function Get-WritableDirectories {
 # Test-FileAccess -FilePaths (Get-AllFiles -Path "C:\Windows\System32") -Permission R,W,E | Format-Table -AutoSize
 
 # Check for writable folders
-Get-WritableDirectories -RootPath "C:\Windows\"
+# Get-WritableDirectories -RootPath "C:\Windows\"
 
 # Load from internet
 # powershell -ep bypass -nop -c "IEX (New-Object Net.WebClient).DownloadString('https://raw.githubusercontent.com/afkfr0mkeyb0ard/Get-WritableDirectories/refs/heads/main/functions.ps1');
