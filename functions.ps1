@@ -212,6 +212,38 @@ function Test-FileExecutable {
     }
 }
 
+# Function to check if the current user has write permission on a given directory
+function Test-FolderWritePermission {
+    param (
+        [string]$DirectoryPath
+    )
+    $writeAccess = $false
+    $filepath = Join-Path $DirectoryPath "poc.txt"
+    try {
+        echo "Poc" | Out-File $filepath
+	$writeAccess = $true
+	
+    } catch {}
+
+	if ($writeAccess){
+	try{Remove-Item $filepath -ErrorAction Stop}
+	catch{Write-Host "[!] Cannot remove file $filepath"}}
+    return $writeAccess
+}
+
+# Function to get all directories recursively and check for write access
+function Get-WritableDirectories {
+    param (
+        [string]$RootPath
+    )
+    $directories = Get-ChildItem $RootPath -Force -Directory -Recurse -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName | Where { $_.StartsWith("C:\")}
+    foreach ($dir in $directories) {
+        if (Test-FolderWritePermission -DirectoryPath $dir) {
+            Write-Host $dir
+        }
+    }
+}
+
 # Check for writable files only
 # Test-FileAccess -FilePaths (Get-AllFiles -Path "C:\Windows\System32") -Permission W | Format-Table -AutoSize
 
@@ -220,3 +252,9 @@ function Test-FileExecutable {
 
 # Check for readable, writable and executable files 
 # Test-FileAccess -FilePaths (Get-AllFiles -Path "C:\Windows\System32") -Permission R,W,E | Format-Table -AutoSize
+
+# Check for writable folders
+Get-WritableDirectories -RootPath "C:\Windows\"
+
+# Load from internet
+# powershell -ep bypass -nop -c "IEX (New-Object Net.WebClient).DownloadString('https://raw.githubusercontent.com/afkfr0mkeyb0ard/Get-WritableDirectories/refs/heads/main/functions.ps1');
